@@ -34,6 +34,16 @@ try {
     "start_workspace_scan",
     "update_finding_status"
   ]);
+  const toolsByName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+  assert.deepEqual(toolsByName.get("prepare_workspace_scan")?.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+  });
+  assert.equal(toolsByName.get("list_projects")?.annotations?.readOnlyHint, true);
+  assert.equal(toolsByName.get("start_workspace_scan")?.annotations?.readOnlyHint, false);
+  assert.equal(toolsByName.get("update_finding_status")?.annotations?.readOnlyHint, false);
 
   const prepared = await client.callTool({ name: "prepare_workspace_scan", arguments: { platforms: ["apple", "google"] } });
   assert.equal(prepared.isError, undefined);

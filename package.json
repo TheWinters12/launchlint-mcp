@@ -1,6 +1,6 @@
 {
   "name": "@launchlint/mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Secure local workspace connector for LaunchLint mobile app checks",
   "type": "module",
   "license": "MIT",

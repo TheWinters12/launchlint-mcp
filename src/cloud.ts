@@ -55,7 +55,7 @@ export class LaunchLintCloud {
     if (!this.clientPromise) {
       this.clientPromise = (async () => {
         await this.oauth.accessToken();
-        const client = new Client({ name: "launchlint-local-connector", version: "0.1.2" }, { capabilities: {} });
+        const client = new Client({ name: "launchlint-local-connector", version: "0.1.3" }, { capabilities: {} });
         const transport = new StreamableHTTPClientTransport(new URL("/mcp", this.baseUrl), { authProvider: this.oauth.authProvider });
         await client.connect(transport as Parameters<Client["connect"]>[0]);
         return client;

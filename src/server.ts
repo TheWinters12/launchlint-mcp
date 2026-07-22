@@ -8,15 +8,19 @@ import { collectWorkspace, type WorkspaceSnapshot } from "./workspace.js";
 
 const localeSchema = z.enum(["de", "en", "es", "fr", "it"]).default("en");
 const platformsSchema = z.array(z.enum(["apple", "google"])).min(1).max(2).default(["apple", "google"]);
+const localReadAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
+const cloudReadAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const;
+const cloudActionAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } as const;
 
 export function createLocalMcpServer(cloud = new LaunchLintCloud()) {
-  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.2" });
+  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.3" });
   let prepared: WorkspaceSnapshot | null = null;
 
   server.registerTool("prepare_workspace_scan", {
     title: "Prepare local app check",
     description: "Inspect the approved workspace without uploading it. Returns counts, exclusions, size, and a one-time confirmation token.",
-    inputSchema: z.object({ platforms: platformsSchema })
+    inputSchema: z.object({ platforms: platformsSchema }),
+    annotations: localReadAnnotations
   }, async ({ platforms }) => {
     try {
       const root = await resolveApprovedRoot(server);
@@ -28,7 +32,8 @@ export function createLocalMcpServer(cloud = new LaunchLintCloud()) {
   server.registerTool("start_workspace_scan", {
     title: "Start local app check",
     description: "Upload the previously prepared workspace snapshot directly to LaunchLint. Requires explicit confirmation and consumes one app check.",
-    inputSchema: z.object({ confirmationToken: z.string().uuid(), confirm: z.literal(true), appName: z.string().min(1).max(160).optional(), projectKey: z.string().min(1).max(300).optional(), platforms: platformsSchema })
+    inputSchema: z.object({ confirmationToken: z.string().uuid(), confirm: z.literal(true), appName: z.string().min(1).max(160).optional(), projectKey: z.string().min(1).max(300).optional(), platforms: platformsSchema }),
+    annotations: cloudActionAnnotations
   }, async ({ confirmationToken, confirm, appName, projectKey, platforms }) => {
     try {
       if (!confirm || !prepared || prepared.confirmationToken !== confirmationToken) throw new Error("Run prepare_workspace_scan and confirm its current token before starting the app check.");
@@ -66,10 +71,11 @@ function proxy<T extends z.ZodRawShape>(server: McpServer, cloud: LaunchLintClou
   type ProxyResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
   const register = server.registerTool.bind(server) as unknown as (
     toolName: string,
-    config: { description: string; inputSchema: z.ZodType },
+    config: { description: string; inputSchema: z.ZodType; annotations: typeof cloudReadAnnotations | typeof cloudActionAnnotations },
     callback: (args: Record<string, unknown>) => Promise<ProxyResult>
   ) => unknown;
-  register(name, { description: `Use the authenticated LaunchLint cloud tool ${name}.`, inputSchema: schema }, async (args) => {
+  const annotations = name === "start_rescan" || name === "update_finding_status" ? cloudActionAnnotations : cloudReadAnnotations;
+  register(name, { description: `Use the authenticated LaunchLint cloud tool ${name}.`, inputSchema: schema, annotations }, async (args) => {
     try {
       const response = await cloud.callTool(name, args as Record<string, unknown>);
       const value = response.structuredContent && typeof response.structuredContent === "object"
