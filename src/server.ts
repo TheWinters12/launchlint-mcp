@@ -13,7 +13,7 @@ const cloudReadAnnotations = { readOnlyHint: true, destructiveHint: false, idemp
 const cloudActionAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } as const;
 
 export function createLocalMcpServer(cloud = new LaunchLintCloud()) {
-  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.3" });
+  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.4" });
   let prepared: WorkspaceSnapshot | null = null;
 
   server.registerTool("prepare_workspace_scan", {

@@ -36,6 +36,14 @@ export class LaunchLintCloud {
     return this.request<{ scanJobId: string; projectKey: string; status: string; created: boolean }>(input.uploadUrl, { method: "POST", body: formData });
   }
 
+  async close() {
+    const pending = this.clientPromise;
+    this.clientPromise = null;
+    if (!pending) return;
+    const client = await pending.catch(() => null);
+    await client?.close().catch(() => undefined);
+  }
+
   private async request<T>(pathname: string, init: RequestInit) {
     const target = new URL(pathname, this.baseUrl);
     if (target.origin !== this.baseUrl.origin) {
@@ -55,7 +63,7 @@ export class LaunchLintCloud {
     if (!this.clientPromise) {
       this.clientPromise = (async () => {
         await this.oauth.accessToken();
-        const client = new Client({ name: "launchlint-local-connector", version: "0.1.3" }, { capabilities: {} });
+        const client = new Client({ name: "launchlint-local-connector", version: "0.1.4" }, { capabilities: {} });
         const transport = new StreamableHTTPClientTransport(new URL("/mcp", this.baseUrl), { authProvider: this.oauth.authProvider });
         await client.connect(transport as Parameters<Client["connect"]>[0]);
         return client;

@@ -8,13 +8,13 @@ Secure local MCP connector for [LaunchLint](https://launchlint.app). It reads on
 ## Codex
 
 ```bash
-codex mcp add launchlint -- npx -y @launchlint/mcp@0.1.3
+codex mcp add launchlint -- npx -y @launchlint/mcp@0.1.4
 ```
 
 ## Claude Code
 
 ```bash
-claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.3
+claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.4
 ```
 
 ## Cursor or JSON configuration
@@ -24,7 +24,7 @@ claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.3
   "mcpServers": {
     "launchlint": {
       "command": "npx",
-      "args": ["-y", "@launchlint/mcp@0.1.3"],
+      "args": ["-y", "@launchlint/mcp@0.1.4"],
       "env": {
         "LAUNCHLINT_WORKSPACE": "/absolute/path/to/app"
       }

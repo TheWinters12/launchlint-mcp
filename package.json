@@ -1,6 +1,6 @@
 {
   "name": "@launchlint/mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Secure local workspace connector for LaunchLint mobile app checks",
   "type": "module",
   "license": "MIT",
@@ -34,7 +34,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/test/workspace.test.ts && tsx src/test/protocol.test.ts",
+    "test": "tsx src/test/workspace.test.ts && tsx src/test/protocol.test.ts && tsx src/test/cli-lifecycle.test.ts",
     "audit": "npm audit --omit=dev --audit-level=high",
     "pack:check": "npm pack --dry-run",
     "release:check": "npm run typecheck && npm test && npm run build && npm run audit && npm run pack:check"
