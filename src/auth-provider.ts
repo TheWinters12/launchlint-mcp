@@ -4,27 +4,37 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { auth, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import { auth, type OAuthClientProvider, type OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js";
 import open from "open";
 
 const callbackUrl = "http://127.0.0.1:47831/callback";
 const scopes = "openid profile email offline_access projects:read scans:read scans:create exports:read findings:write";
+const scopeList = scopes.split(" ");
 
 type StoredAuth = {
   clientInformation?: OAuthClientInformationMixed;
   tokens?: OAuthTokens;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
 };
 
 export class LaunchLintOAuth {
   private readonly provider: PersistentProvider;
+  private readonly resourceMetadataUrl: URL;
 
   constructor(private readonly serverUrl: URL) {
-    this.provider = new PersistentProvider(async (url) => {
+    this.resourceMetadataUrl = new URL("/.well-known/oauth-protected-resource/mcp", serverUrl);
+    this.provider = new PersistentProvider(createPinnedDiscoveryState(serverUrl), async (url) => {
       const callback = waitForCallback(this.provider.expectedState);
-      await open(url.toString(), { wait: false });
+      const authorizationUrl = normalizeAuthorizationUrl(url, this.serverUrl);
+      await open(authorizationUrl.toString(), { wait: false });
       const code = await callback;
-      await auth(this.provider, { serverUrl: this.serverUrl, authorizationCode: code, scope: scopes });
+      await auth(this.provider, {
+        serverUrl: this.serverUrl,
+        authorizationCode: code,
+        scope: scopes,
+        resourceMetadataUrl: this.resourceMetadataUrl
+      });
     });
   }
 
@@ -35,7 +45,13 @@ export class LaunchLintOAuth {
   async accessToken() {
     const configured = process.env.LAUNCHLINT_ACCESS_TOKEN?.trim();
     if (configured) return configured;
-    const result = await auth(this.provider, { serverUrl: this.serverUrl, scope: scopes });
+    const existing = await this.provider.tokens();
+    if (existing?.access_token) return existing.access_token;
+    const result = await auth(this.provider, {
+      serverUrl: this.serverUrl,
+      scope: scopes,
+      resourceMetadataUrl: this.resourceMetadataUrl
+    });
     if (result === "REDIRECT") {
       await this.provider.pendingAuthorization;
     }
@@ -51,7 +67,10 @@ class PersistentProvider implements OAuthClientProvider {
   private data: StoredAuth | null = null;
   private readonly filePath = authFilePath();
 
-  constructor(private readonly onRedirect: (url: URL) => Promise<void>) {}
+  constructor(
+    private readonly pinnedDiscoveryState: OAuthDiscoveryState,
+    private readonly onRedirect: (url: URL) => Promise<void>
+  ) {}
 
   get redirectUrl() { return callbackUrl; }
   get clientMetadata(): OAuthClientMetadata {
@@ -69,7 +88,14 @@ class PersistentProvider implements OAuthClientProvider {
   async clientInformation() { return (await this.load()).clientInformation; }
   async saveClientInformation(clientInformation: OAuthClientInformationMixed) { await this.save({ ...(await this.load()), clientInformation }); }
   async tokens() { return (await this.load()).tokens; }
-  async saveTokens(tokens: OAuthTokens) { await this.save({ ...(await this.load()), tokens }); }
+  async saveTokens(tokens: OAuthTokens) {
+    const current = await this.load();
+    await this.save({ ...current, tokens: mergeOAuthTokens(current.tokens, tokens) });
+  }
+  async discoveryState() { return this.pinnedDiscoveryState; }
+  async saveDiscoveryState(_discoveryState: OAuthDiscoveryState) {
+    await this.save({ ...(await this.load()), discoveryState: this.pinnedDiscoveryState });
+  }
   redirectToAuthorization(url: URL) { this.pendingAuthorization = this.onRedirect(url); }
   async saveCodeVerifier(codeVerifier: string) { await this.save({ ...(await this.load()), codeVerifier }); }
   async codeVerifier() {
@@ -83,6 +109,7 @@ class PersistentProvider implements OAuthClientProvider {
     if (scope === "client") delete current.clientInformation;
     if (scope === "tokens") delete current.tokens;
     if (scope === "verifier") delete current.codeVerifier;
+    if (scope === "discovery") delete current.discoveryState;
     await this.save(current);
   }
 
@@ -99,6 +126,46 @@ class PersistentProvider implements OAuthClientProvider {
     await writeFile(temporary, `${JSON.stringify(data, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(temporary, this.filePath);
   }
+}
+
+export function normalizeAuthorizationUrl(url: URL, serverUrl: URL) {
+  const normalized = new URL(url);
+  if (normalized.origin !== serverUrl.origin) {
+    throw new Error("LaunchLint authorization was redirected to an untrusted origin.");
+  }
+  if (normalized.pathname === "/authorize") {
+    normalized.pathname = "/api/auth/mcp/authorize";
+  }
+  return normalized;
+}
+
+export function createPinnedDiscoveryState(serverUrl: URL): OAuthDiscoveryState {
+  const origin = serverUrl.origin;
+  return {
+    authorizationServerUrl: origin,
+    resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/mcp", origin).toString(),
+    authorizationServerMetadata: {
+      issuer: origin,
+      authorization_endpoint: new URL("/api/auth/mcp/authorize", origin).toString(),
+      token_endpoint: new URL("/api/auth/mcp/token", origin).toString(),
+      registration_endpoint: new URL("/api/auth/mcp/register", origin).toString(),
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", "none"],
+      scopes_supported: scopeList
+    },
+    resourceMetadata: {
+      resource: new URL("/mcp", origin).toString(),
+      authorization_servers: [origin],
+      scopes_supported: scopeList
+    }
+  };
+}
+
+export function mergeOAuthTokens(current: OAuthTokens | undefined, next: OAuthTokens): OAuthTokens {
+  if (next.refresh_token || !current?.refresh_token) return next;
+  return { ...next, refresh_token: current.refresh_token };
 }
 
 function authFilePath() {

@@ -5,16 +5,18 @@
 
 Secure local MCP connector for [LaunchLint](https://launchlint.app). It reads only supported files from the explicitly approved workspace, respects `.gitignore` and `.launchlintignore`, never executes project code, and sends a controlled snapshot directly to LaunchLint over HTTPS.
 
+On Windows, the connector combines Node.js' bundled certificates with the trusted Windows certificate store. TLS verification always remains enabled.
+
 ## Codex
 
 ```bash
-codex mcp add launchlint -- npx -y @launchlint/mcp@0.1.4
+codex mcp add launchlint -- npx -y @launchlint/mcp@0.1.5
 ```
 
 ## Claude Code
 
 ```bash
-claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.4
+claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.5
 ```
 
 ## Cursor or JSON configuration
@@ -24,7 +26,7 @@ claude mcp add launchlint -- npx -y @launchlint/mcp@0.1.4
   "mcpServers": {
     "launchlint": {
       "command": "npx",
-      "args": ["-y", "@launchlint/mcp@0.1.4"],
+      "args": ["-y", "@launchlint/mcp@0.1.5"],
       "env": {
         "LAUNCHLINT_WORKSPACE": "/absolute/path/to/app"
       }

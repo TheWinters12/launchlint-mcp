@@ -2,7 +2,9 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { LaunchLintCloud } from "./cloud.js";
 import { createLocalMcpServer } from "./server.js";
+import { enableWindowsSystemCertificates } from "./system-ca.js";
 
+enableWindowsSystemCertificates();
 const cloud = new LaunchLintCloud();
 const server = createLocalMcpServer(cloud);
 await server.connect(new StdioServerTransport());

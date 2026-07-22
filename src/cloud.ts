@@ -19,7 +19,11 @@ export class LaunchLintCloud {
 
   async callTool(name: string, args: Record<string, unknown>) {
     const client = await this.getClient();
-    return client.callTool({ name, arguments: args });
+    try {
+      return await client.callTool({ name, arguments: args });
+    } finally {
+      await this.close();
+    }
   }
 
   async createWorkspaceSession(input: { workspaceFingerprint: string; projectKey?: string; idempotencyKey: string; sha256: string; fileCount: number; sizeBytes: number }) {
@@ -63,7 +67,7 @@ export class LaunchLintCloud {
     if (!this.clientPromise) {
       this.clientPromise = (async () => {
         await this.oauth.accessToken();
-        const client = new Client({ name: "launchlint-local-connector", version: "0.1.4" }, { capabilities: {} });
+        const client = new Client({ name: "launchlint-local-connector", version: "0.1.5" }, { capabilities: {} });
         const transport = new StreamableHTTPClientTransport(new URL("/mcp", this.baseUrl), { authProvider: this.oauth.authProvider });
         await client.connect(transport as Parameters<Client["connect"]>[0]);
         return client;

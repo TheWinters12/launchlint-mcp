@@ -13,7 +13,7 @@ const cloudReadAnnotations = { readOnlyHint: true, destructiveHint: false, idemp
 const cloudActionAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } as const;
 
 export function createLocalMcpServer(cloud = new LaunchLintCloud()) {
-  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.4" });
+  const server = new McpServer({ name: "LaunchLint Workspace Connector", version: "0.1.5" });
   let prepared: WorkspaceSnapshot | null = null;
 
   server.registerTool("prepare_workspace_scan", {
@@ -101,5 +101,12 @@ function result(value: Record<string, unknown>) {
 }
 
 function failure(error: unknown) {
-  return { isError: true, content: [{ type: "text" as const, text: error instanceof Error ? error.message : "The LaunchLint connector could not complete this request." }] };
+  return { isError: true, content: [{ type: "text" as const, text: connectorErrorMessage(error) }] };
+}
+
+export function connectorErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) return "The LaunchLint connector could not complete this request.";
+  const cause = error.cause;
+  if (!(cause instanceof Error) || !cause.message || cause.message === error.message) return error.message;
+  return `${error.message} (${cause.message})`;
 }

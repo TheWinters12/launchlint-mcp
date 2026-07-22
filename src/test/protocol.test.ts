@@ -4,8 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createLocalMcpServer } from "../server.js";
+import { connectorErrorMessage, createLocalMcpServer } from "../server.js";
 import { LaunchLintCloud } from "../cloud.js";
+import { createPinnedDiscoveryState, mergeOAuthTokens, normalizeAuthorizationUrl } from "../auth-provider.js";
+import { enableWindowsSystemCertificates } from "../system-ca.js";
 
 const workspace = await mkdtemp(path.join(os.tmpdir(), "launchlint-mcp-protocol-"));
 const previousWorkspace = process.env.LAUNCHLINT_WORKSPACE;
@@ -53,6 +55,31 @@ try {
 
   assert.throws(() => new LaunchLintCloud("https://example.com"), /HTTPS endpoint on launchlint\.app/);
   assert.throws(() => new LaunchLintCloud("http://launchlint.app"), /HTTPS endpoint on launchlint\.app/);
+
+  const fallbackAuthorizationUrl = new URL("https://launchlint.app/authorize?response_type=code&code_challenge=test&state=stable");
+  const normalizedAuthorizationUrl = normalizeAuthorizationUrl(fallbackAuthorizationUrl, new URL("https://launchlint.app/mcp"));
+  assert.equal(normalizedAuthorizationUrl.pathname, "/api/auth/mcp/authorize");
+  assert.equal(normalizedAuthorizationUrl.search, fallbackAuthorizationUrl.search);
+  assert.throws(
+    () => normalizeAuthorizationUrl(new URL("https://example.com/authorize"), new URL("https://launchlint.app/mcp")),
+    /untrusted origin/
+  );
+  const discoveryState = createPinnedDiscoveryState(new URL("https://launchlint.app/mcp"));
+  assert.equal(discoveryState.authorizationServerMetadata?.authorization_endpoint, "https://launchlint.app/api/auth/mcp/authorize");
+  assert.equal(discoveryState.authorizationServerMetadata?.token_endpoint, "https://launchlint.app/api/auth/mcp/token");
+  assert.equal(discoveryState.authorizationServerMetadata?.registration_endpoint, "https://launchlint.app/api/auth/mcp/register");
+  assert.equal(discoveryState.resourceMetadata?.resource, "https://launchlint.app/mcp");
+  const refreshedTokens = mergeOAuthTokens(
+    { access_token: "old-access", token_type: "bearer", refresh_token: "stable-refresh" },
+    { access_token: "new-access", token_type: "bearer" }
+  );
+  assert.equal(refreshedTokens.access_token, "new-access");
+  assert.equal(refreshedTokens.refresh_token, "stable-refresh");
+  assert.equal(
+    connectorErrorMessage(new Error("fetch failed", { cause: new Error("getaddrinfo ENOTFOUND launchlint.app") })),
+    "fetch failed (getaddrinfo ENOTFOUND launchlint.app)"
+  );
+  assert.equal(typeof enableWindowsSystemCertificates(), "boolean");
 
   const foreignUploadCloud = new LaunchLintCloud();
   const foreignUpload = foreignUploadCloud.uploadWorkspace({
