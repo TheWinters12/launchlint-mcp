@@ -1,0 +1,58 @@
+{
+  "name": "@launchlint/mcp",
+  "version": "0.1.2",
+  "description": "Secure local workspace connector for LaunchLint mobile app checks",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheWinters12/launchlint-mcp.git"
+  },
+  "homepage": "https://launchlint.app",
+  "bugs": {
+    "url": "https://github.com/TheWinters12/launchlint-mcp/issues"
+  },
+  "bin": {
+    "launchlint-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist/*.js",
+    "dist/*.js.map",
+    "dist/*.d.ts",
+    "dist/*.d.ts.map",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx src/test/workspace.test.ts && tsx src/test/protocol.test.ts",
+    "audit": "npm audit --omit=dev --audit-level=high",
+    "pack:check": "npm pack --dry-run",
+    "release:check": "npm run typecheck && npm test && npm run build && npm run audit && npm run pack:check"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "ignore": "7.0.5",
+    "open": "10.2.0",
+    "yazl": "3.3.1",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/yazl": "3.3.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.11"
+  }
+}
