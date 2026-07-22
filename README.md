@@ -1,5 +1,8 @@
 # @launchlint/mcp
 
+[![CI](https://github.com/TheWinters12/launchlint-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/TheWinters12/launchlint-mcp/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/%40launchlint%2Fmcp)](https://www.npmjs.com/package/@launchlint/mcp)
+
 Secure local MCP connector for [LaunchLint](https://launchlint.app). It reads only supported files from the explicitly approved workspace, respects `.gitignore` and `.launchlintignore`, never executes project code, and sends a controlled snapshot directly to LaunchLint over HTTPS.
 
 ## Codex
